@@ -1,0 +1,615 @@
+﻿apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: hello-world-bld-
+  namespace: henda
+  labels:
+    tekton.dev/pipeline: ace-pipeline
+spec:
+  params:
+    - name: app-name
+      value: hello-world
+    - name: git-url
+      value: 'https://github.com/hindos/ACE.git'
+    - name: git-revision
+      value: master
+    - name: app-namespace
+      value: ace
+    - name: configurations
+      value: 'hello-world-server-conf,hello-world-is-is-adminssl'
+    - name: private-lan-id
+      value: ''
+    - name: private-ip
+      value: ''
+    - name: min-cpu
+      value: 125m
+    - name: max-cpu
+      value: 1000m
+    - name: min-memory
+      value: 512Mi
+    - name: max-memory
+      value: 2048Mi
+    - name: environment
+      value: build-only
+  pipelineRef:
+    name: ace-pipeline
+  serviceAccountName: pipeline
+  timeout: 1h0m0s
+
+  completionTime: '2021-03-23T21:09:01Z'
+  conditions:
+    - lastTransitionTime: '2021-03-23T21:09:01Z'
+      message: 'Tasks Completed: 2 (Failed: 0, Cancelled 0), Skipped: 1'
+      reason: Completed
+      status: 'True'
+      type: Succeeded
+  pipelineSpec:
+    params:
+      - default: ''
+        description: The url for the git repository
+        name: git-url
+        type: string
+      - default: master
+        description: 'The git revision (branch, tag, or sha) that should be built'
+        name: git-revision
+        type: string
+      - default: integrationserver
+        description: The integration server deployment name
+        name: app-name
+        type: string
+      - default: default
+        name: app-namespace
+        type: string
+      - default: ' '
+        description: IntegrationServer configurations list (comma separated)
+        name: configurations
+        type: string
+      - default: 250m
+        description: Minimum CPU request
+        name: min-cpu
+        type: string
+      - default: 500m
+        description: Maximum CPU request
+        name: max-cpu
+        type: string
+      - default: 256Mi
+        description: Minimum memory request
+        name: min-memory
+        type: string
+      - default: 512Mi
+        description: Maximum memory request
+        name: max-memory
+        type: string
+      - default: ''
+        description: Dedicated worker node label
+        name: worker-node
+        type: string
+      - default: ''
+        description: Adds a new service selector label
+        name: match-selector
+        type: string
+      - default: ''
+        description: Private LAN ID of OpenShift Cluster
+        name: private-lan-id
+        type: string
+      - default: ''
+        description: Private IP Address of Service
+        name: private-ip
+        type: string
+      - default: '1'
+        description: Number of replicas to run
+        name: replicas
+        type: string
+      - default: dev
+        description: Deployment environment
+        name: environment
+        type: string
+      - default: 'false'
+        description: true if other images will reference this image
+        name: master-image
+        type: string
+    tasks:
+      - name: setup
+        params:
+          - name: git-url
+            value: $(params.git-url)
+          - name: git-revision
+            value: $(params.git-revision)
+          - name: app-namespace
+            value: $(params.app-namespace)
+          - name: environment
+            value: $(params.environment)
+        taskRef:
+          kind: Task
+          name: generic-setup
+      - name: build
+        params:
+          - name: git-url
+            value: $(tasks.setup.results.git-url)
+          - name: git-revision
+            value: $(tasks.setup.results.git-revision)
+          - name: source-dir
+            value: $(tasks.setup.results.source-dir)
+          - name: tools-image
+            value: $(tasks.setup.results.tools-image)
+          - name: image-name
+            value: $(tasks.setup.results.image-name)
+          - name: image-tag
+            value: $(tasks.setup.results.image-tag)
+          - name: registry-location
+            value: $(tasks.setup.results.registry-location)
+          - name: registry-namespace
+            value: $(tasks.setup.results.registry-namespace)
+          - name: master-image
+            value: $(params.master-image)
+        runAfter:
+          - setup
+        taskRef:
+          kind: Task
+          name: generic-build
+        when:
+          - Input: $(params.environment)
+            Operator: in
+            Values:
+              - build-only
+      - name: deploy
+        params:
+          - name: git-url
+            value: $(tasks.setup.results.git-url)
+          - name: git-revision
+            value: $(tasks.setup.results.git-revision)
+          - name: source-dir
+            value: $(tasks.setup.results.source-dir)
+          - name: image-name
+            value: $(tasks.setup.results.image-name)
+          - name: image-tag
+            value: $(tasks.setup.results.image-tag)
+          - name: registry-location
+            value: $(tasks.setup.results.registry-location)
+          - name: registry-namespace
+            value: $(tasks.setup.results.registry-namespace)
+          - name: app-namespace
+            value: $(tasks.setup.results.app-namespace)
+          - name: app-name
+            value: $(params.app-name)
+          - name: tools-image
+            value: $(tasks.setup.results.tools-image)
+          - name: api-server
+            value: $(tasks.setup.results.api-server)
+          - name: private-lan-id
+            value: $(params.private-lan-id)
+          - name: private-ip
+            value: $(params.private-ip)
+          - name: configurations
+            value: $(params.configurations)
+          - name: min-cpu
+            value: $(params.min-cpu)
+          - name: max-cpu
+            value: $(params.max-cpu)
+          - name: min-memory
+            value: $(params.min-memory)
+          - name: max-memory
+            value: $(params.max-memory)
+          - name: worker-node
+            value: $(params.worker-node)
+          - name: replicas
+            value: $(params.replicas)
+        runAfter:
+          - setup
+        taskRef:
+          kind: Task
+          name: ace-deploy
+        when:
+          - Input: $(params.environment)
+            Operator: notin
+            Values:
+              - build-only
+  skippedTasks:
+    - name: deploy
+  startTime: '2021-03-23T21:07:37Z'
+  taskRuns:
+    ace-pipeline-k1894u-build-nljl7:
+      pipelineTaskName: build
+      status:
+        completionTime: '2021-03-23T21:09:00Z'
+        conditions:
+          - lastTransitionTime: '2021-03-23T21:09:00Z'
+            message: All Steps have completed executing
+            reason: Succeeded
+            status: 'True'
+            type: Succeeded
+        podName: ace-pipeline-k1894u-build-nljl7-pod-gvkc5
+        startTime: '2021-03-23T21:07:43Z'
+        steps:
+          - container: step-git-clone
+            imageID: >-
+              quay.io/ibmgaragecloud/ibmcloud-dev@sha256:a3a486b8ac5c99b9dad1ae3da35d3dcb4197274d9807ee896e2ea75349252bea
+            name: git-clone
+            terminated:
+              containerID: >-
+                cri-o://7123a58c40f8876cbb1066da172e8dc9960334fe3e2d8534d5bbc41cddf18ff5
+              exitCode: 0
+              finishedAt: '2021-03-23T21:07:50Z'
+              reason: Completed
+              startedAt: '2021-03-23T21:07:49Z'
+          - container: step-build
+            imageID: >-
+              quay.io/buildah/stable@sha256:04803d2144a2df5bf3aa2875f130e2b6cfc6ee45003125dc4df13f05f0898f9a
+            name: build
+            terminated:
+              containerID: >-
+                cri-o://a2ec67c689f05cd99b1ced6a93e4868fbc018e98164d4eb28d5672995c282d7d
+              exitCode: 0
+              finishedAt: '2021-03-23T21:09:00Z'
+              reason: Completed
+              startedAt: '2021-03-23T21:07:51Z'
+        taskSpec:
+          params:
+            - name: git-url
+              type: string
+            - name: git-revision
+              type: string
+            - name: source-dir
+              type: string
+            - name: image-name
+              type: string
+            - name: image-tag
+              type: string
+            - name: registry-location
+              type: string
+            - name: registry-namespace
+              type: string
+            - name: tools-image
+              type: string
+            - name: master-image
+              type: string
+            - default: 'quay.io/buildah/stable:v1.15.0'
+              name: BUILDER_IMAGE
+              type: string
+            - default: ./Dockerfile
+              name: DOCKERFILE
+              type: string
+            - default: .
+              name: CONTEXT
+              type: string
+            - default: 'false'
+              name: TLSVERIFY
+              type: string
+            - default: docker
+              name: FORMAT
+              type: string
+            - default: overlay
+              name: STORAGE_DRIVER
+              type: string
+          stepTemplate:
+            name: ''
+            resources: {}
+            volumeMounts:
+              - mountPath: $(params.source-dir)
+                name: source
+          steps:
+            - env:
+                - name: GIT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: password
+                      name: ibm-git-credentials
+                      optional: true
+                - name: GIT_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      key: username
+                      name: ibm-git-credentials
+                      optional: true
+              image: $(params.tools-image)
+              name: git-clone
+              resources: {}
+              script: >
+                set +x
+
+                if [[ -n "${GIT_USERNAME}" ]] && [[ -n "${GIT_PASSWORD}" ]];
+                then
+                    git clone "$(echo $(params.git-url) | awk -F '://' '{print $1}')://${GIT_USERNAME}:${GIT_PASSWORD}@$(echo $(params.git-url) | awk -F '://' '{print $2}')" $(params.source-dir)
+                else
+                    set -x
+                    git clone $(params.git-url) $(params.source-dir)
+                fi
+
+                set -x
+
+                cd $(params.source-dir)
+
+                git checkout $(params.git-revision)      
+            - env:
+                - name: REGISTRY_USER
+                  valueFrom:
+                    secretKeyRef:
+                      key: REGISTRY_USER
+                      name: ibm-registry-access
+                      optional: false
+                - name: REGISTRY_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: REGISTRY_PASSWORD
+                      name: ibm-registry-access
+                      optional: false
+              image: $(params.BUILDER_IMAGE)
+              name: build
+              resources: {}
+              script: >
+                set +x
+
+                APP_IMAGE="$(params.registry-location)/$(params.registry-namespace)/$(params.image-name):$(params.image-tag)"
+
+                LATEST="$(params.registry-location)/$(params.registry-namespace)/$(params.image-name):latest"
+
+                MASTER_IMAGE=`echo $(params.master-image) | sed 's/ *$//g'` 
+
+
+                echo "Building image [${APP_IMAGE}]"
+
+
+                echo "buildah login -u \"${REGISTRY_USER}\" -p \"xxxxx\"
+                \"$(params.registry-location)\""
+
+                buildah login -u "${REGISTRY_USER}" -p "${REGISTRY_PASSWORD}"
+                "$(params.registry-location)"
+
+
+                echo "buildah --layers --storage-driver=$(params.STORAGE_DRIVER)
+                bud --pull-always --format=$(params.FORMAT)
+                --tls-verify=$(params.TLSVERIFY) -f $(params.DOCKERFILE) -t
+                ${APP_IMAGE} $(params.CONTEXT)"
+
+                buildah --layers --storage-driver=$(params.STORAGE_DRIVER) bud
+                --pull-always --format=$(params.FORMAT)
+                --tls-verify=$(params.TLSVERIFY) -f $(params.DOCKERFILE) -t
+                ${APP_IMAGE} $(params.CONTEXT)
+
+
+                echo "buildah --storage-driver=$(params.STORAGE_DRIVER) push
+                --tls-verify=$(params.TLSVERIFY) --digestfile ./image-digest
+                ${APP_IMAGE} docker://${APP_IMAGE}"
+
+                buildah --storage-driver=$(params.STORAGE_DRIVER) push
+                --tls-verify=$(params.TLSVERIFY) --digestfile ./image-digest
+                ${APP_IMAGE} docker://${APP_IMAGE}      
+
+
+                if [[ ${MASTER_IMAGE} == "true" ]];
+
+                then
+                   echo "buildah --storage-driver=$(params.STORAGE_DRIVER) tag ${APP_IMAGE} ${LATEST}"
+                   buildah --storage-driver=$(params.STORAGE_DRIVER) tag ${APP_IMAGE} ${LATEST}
+
+                   echo "buildah --storage-driver=$(params.STORAGE_DRIVER) push ${LATEST}"
+                   buildah --storage-driver=$(params.STORAGE_DRIVER) push --tls-verify=$(params.TLSVERIFY) --digestfile ./image-digest ${LATEST}
+                fi
+              securityContext:
+                privileged: true
+              volumeMounts:
+                - mountPath: /var/lib/containers
+                  name: varlibcontainers
+              workingDir: $(params.source-dir)
+          volumes:
+            - emptyDir: {}
+              name: varlibcontainers
+            - emptyDir: {}
+              name: source
+    ace-pipeline-k1894u-setup-p2jv4:
+      pipelineTaskName: setup
+      status:
+        completionTime: '2021-03-23T21:07:43Z'
+        conditions:
+          - lastTransitionTime: '2021-03-23T21:07:43Z'
+            message: All Steps have completed executing
+            reason: Succeeded
+            status: 'True'
+            type: Succeeded
+        podName: ace-pipeline-k1894u-setup-p2jv4-pod-r6x2n
+        startTime: '2021-03-23T21:07:37Z'
+        steps:
+          - container: step-git-clone
+            imageID: >-
+              quay.io/ibmgaragecloud/ibmcloud-dev@sha256:a3a486b8ac5c99b9dad1ae3da35d3dcb4197274d9807ee896e2ea75349252bea
+            name: git-clone
+            terminated:
+              containerID: >-
+                cri-o://5f6004ee543c4f9440094efa2de791aafed1275de1dce0d2d867c7af9efaee99
+              exitCode: 0
+              finishedAt: '2021-03-23T21:07:43Z'
+              message: >-
+                [{"key":"api-server","value":"null\n","resourceRef":{},"type":"TaskRunResult"},{"key":"app-namespace","value":"ace","resourceRef":{},"type":"TaskRunResult"},{"key":"git-revision","value":"c0c8bc220b6104068f74228caa9741a9424e8b38","resourceRef":{},"type":"TaskRunResult"},{"key":"git-url","value":"https://github.com/hindos/ACE.git","resourceRef":{},"type":"TaskRunResult"},{"key":"image-name","value":"ace","resourceRef":{},"type":"TaskRunResult"},{"key":"image-tag","value":"c0c8bc2","resourceRef":{},"type":"TaskRunResult"},{"key":"registry-location","value":"docker.io","resourceRef":{},"type":"TaskRunResult"},{"key":"registry-namespace","value":"hindos","resourceRef":{},"type":"TaskRunResult"},{"key":"source-dir","value":"/source","resourceRef":{},"type":"TaskRunResult"},{"key":"tools-image","value":"quay.io/ibmgaragecloud/ibmcloud-dev:v2.0.4","resourceRef":{},"type":"TaskRunResult"}]
+              reason: Completed
+              startedAt: '2021-03-23T21:07:42Z'
+        taskResults:
+          - name: api-server
+            value: |
+              null
+          - name: app-namespace
+            value: ace
+          - name: git-revision
+            value: c0c8bc220b6104068f74228caa9741a9424e8b38
+          - name: git-url
+            value: 'https://github.com/hindos/ACE.git'
+          - name: image-name
+            value: ace
+          - name: image-tag
+            value: c0c8bc2
+          - name: registry-location
+            value: docker.io
+          - name: registry-namespace
+            value: hindos
+          - name: source-dir
+            value: /source
+          - name: tools-image
+            value: 'quay.io/ibmgaragecloud/ibmcloud-dev:v2.0.4'
+        taskSpec:
+          params:
+            - name: environment
+              type: string
+            - name: git-url
+              type: string
+            - name: app-namespace
+              type: string
+            - default: master
+              name: git-revision
+              type: string
+            - default: /source
+              name: source-dir
+              type: string
+            - default: ''
+              name: image-name
+              type: string
+            - default: ''
+              name: image-tag
+              type: string
+            - default: docker.io
+              name: registry-location
+              type: string
+            - default: hindos
+              name: registry-namespace
+              type: string
+            - default: 'quay.io/ibmgaragecloud/ibmcloud-dev:v2.0.4'
+              name: tools-image
+              type: string
+          results:
+            - description: ''
+              name: api-server
+            - description: ''
+              name: git-url
+            - description: ''
+              name: git-revision
+            - description: ''
+              name: source-dir
+            - description: ''
+              name: app-namespace
+            - description: ''
+              name: image-name
+            - description: ''
+              name: image-tag
+            - description: ''
+              name: tools-image
+            - description: ''
+              name: registry-location
+            - description: ''
+              name: registry-namespace
+          stepTemplate:
+            name: ''
+            resources: {}
+            volumeMounts:
+              - mountPath: $(params.source-dir)
+                name: source
+          steps:
+            - env:
+                - name: ENVIRONMENTS
+                  valueFrom:
+                    configMapKeyRef:
+                      key: environments.json
+                      name: environments
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: GIT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: password
+                      name: ibm-git-credentials
+                      optional: false
+                - name: GIT_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      key: username
+                      name: ibm-git-credentials
+                      optional: false
+              image: $(params.tools-image)
+              name: git-clone
+              resources: {}
+              script: >
+                set +x
+
+                if [[ -n "${GIT_USERNAME}" ]] && [[ -n "${GIT_PASSWORD}" ]];
+                then
+                    git clone "$(echo $(params.git-url) | awk -F '://' '{print $1}')://${GIT_USERNAME}:${GIT_PASSWORD}@$(echo $(params.git-url) | awk -F '://' '{print $2}')" $(params.source-dir)
+                else
+                    git clone $(params.git-url) $(params.source-dir)
+                fi
+
+                cd $(params.source-dir)
+
+                git checkout $(params.git-revision)
+
+
+                # Results
+
+                # Defaults
+
+                echo -n "$(params.git-url)">$(results.git-url.path)
+
+                echo -n "$(git rev-parse --verify
+                HEAD)">$(results.git-revision.path)
+
+                echo -n "$(params.source-dir)">$(results.source-dir.path)
+
+                echo -n "$(params.app-namespace)">$(results.app-namespace.path)
+
+                echo -n "$(params.tools-image)">$(results.tools-image.path)
+
+                echo -n
+                "$(params.registry-namespace)">$(results.registry-namespace.path)
+
+                echo -n
+                "$(params.registry-location)">$(results.registry-location.path)
+
+
+                # get the API Server
+
+                echo "Finding the API SERVER"
+
+
+                if [[ -z ${ENVIRONMENTS} ]];
+
+                then
+                  echo "No deployment environments found in environments config map!"
+                  exit 1
+                else
+                   echo "${ENVIRONMENTS}"
+                   ENV=`echo $(params.environment) | sed 's/ *$//g'` 
+
+                   if [[ ${ENV} == "build-only"]];
+                   then
+                      echo "Building only, no environment selected."
+                   else
+                      APISERVER=`echo ${ENVIRONMENTS} | jq -r '."'${ENV}'"'`
+                      echo "Will deploy to ${ENV}:${APISERVER}"
+                      echo -n ${ENVIRONMENTS} | jq -r '."'${ENV}'"'>$(results.api-server.path)
+                   fi
+                fi
+
+
+                # Assume short git commit revision
+
+                REGISTRY_TAG="$(git rev-parse --verify HEAD --short)"
+
+                echo -n "${REGISTRY_TAG}">$(results.image-tag.path)
+
+
+                if [[ -z "$(params.app-namespace)" ]]; then
+                  # Assume current namespace
+                  echo -n "${NAMESPACE}">$(results.app-namespace.path)
+                fi
+
+
+                IMAGE_NAME="$(basename $(echo -n $(git config --get
+                remote.origin.url)) .git | tr '[:upper:]' '[:lower:]' | sed
+                's/_/-/g')"
+
+                echo -n "${IMAGE_NAME}">$(results.image-name.path)
+
+
+                for f in /tekton/results/*; do echo "results.$(basename
+                $f)=$(cat $f)"; done
+          volumes:
+            - emptyDir: {}
+              name: source
