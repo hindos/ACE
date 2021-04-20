@@ -72,12 +72,12 @@ oc create -f task-generic-build.yaml
 ```
 oc create -f task-ace-deploy.yaml
 ```
-## Create Ace Pipeline
+## Create ACE Pipeline
 ```
                                
 oc create -f pipeline-new-ace-pipeline.yaml
 ```
-## Create Ace PipelineRun
+## Create ACE PipelineRun
 ```
                                
 oc create -f pipelinerun-ace-pipelinerun.yaml
