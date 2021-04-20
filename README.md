@@ -80,7 +80,7 @@ oc create -f pipeline-new-ace-pipeline.yaml
 ## Create ACE PipelineRun
 ```
                                
-oc create -f pipelinerun-ace-pipelinerun.yaml
+oc create -f pipelineRun.yaml
 ```
 
 
