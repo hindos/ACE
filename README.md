@@ -59,6 +59,7 @@ oc create -f task-task-run-pipeline.yaml
 ```
 ### Create the generic-setup task
 
+
 ```
 oc create -f task-generic-setup.yaml
 
